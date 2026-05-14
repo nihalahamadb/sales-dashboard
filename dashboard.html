@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sales & Revenue Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      background-color: #f4f6f8;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #333;
+    }
+    .navbar {
+      background-color: #1a3c5e;
+    }
+    .navbar-brand {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #fff !important;
+      letter-spacing: 0.5px;
+    }
+    .navbar-text {
+      color: #aac4de !important;
+      font-size: 0.85rem;
+    }
+    .main-container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a3c5e;
+      margin-bottom: 4px;
+    }
+    .page-sub {
+      font-size: 0.88rem;
+      color: #6c757d;
+      margin-bottom: 24px;
+    }
+    .upload-area {
+      background: #fff;
+      border: 2px dashed #aac4de;
+      border-radius: 10px;
+      padding: 20px 28px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .upload-area label {
+      background-color: #1a3c5e;
+      color: #fff;
+      padding: 9px 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .upload-area label:hover { background-color: #15304d; }
+    .upload-area input { display: none; }
+    .upload-hint {
+      font-size: 0.82rem;
+      color: #6c757d;
+      line-height: 1.6;
+    }
+    .upload-msg {
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .upload-msg.ok  { background: #d1f0e2; color: #1a7a4a; }
+    .upload-msg.err { background: #fde8e8; color: #c0392b; }
+
+    /* Filter row */
+    .filter-row {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border: 1px solid #e3e8ee;
+    }
+    .filter-row label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 0;
+    }
+    .filter-row select {
+      font-size: 0.85rem;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid #ced4da;
+      background: #f8f9fa;
+      color: #333;
+      cursor: pointer;
+    }
+    .filter-row select:focus { outline: none; border-color: #1a3c5e; box-shadow: 0 0 0 2px rgba(26,60,94,0.12); }
+    .btn-clear {
+      font-size: 0.8rem;
+      padding: 5px 14px;
+      border-radius: 6px;
+      background: #fff0f0;
+      border: 1px solid #f5c6c6;
+      color: #c0392b;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-clear:hover { background: #fde8e8; }
+
+    /* KPI Cards */
+    .kpi-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px 22px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      border: 1px solid #e3e8ee;
+      border-left: 4px solid #1a3c5e;
+      height: 100%;
+    }
+    .kpi-card.green  { border-left-color: #27ae60; }
+    .kpi-card.orange { border-left-color: #e67e22; }
+    .kpi-card.purple { border-left-color: #8e44ad; }
+    .kpi-card.red    { border-left-color: #c0392b; }
+    .kpi-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a3c5e;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .kpi-sub {
+      font-size: 0.78rem;
+      color: #95a5a6;
+    }
+
+    /* Tabs */
+    .tab-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 22px;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 9px 20px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #6c757d;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+      border-radius: 4px 4px 0 0;
+    }
+    .tab-btn:hover { color: #1a3c5e; background: #f0f4f8; }
+    .tab-btn.active { color: #1a3c5e; border-bottom: 2px solid #1a3c5e; background: #fff; }
+
+    /* Chart cards */
+    .chart-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 22px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      border: 1px solid #e3e8ee;
+      margin-bottom: 22px;
+    }
+    .chart-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1a3c5e;
+      margin-bottom: 4px;
+    }
+    .chart-sub {
+      font-size: 0.78rem;
+      color: #95a5a6;
+      margin-bottom: 18px;
+    }
+
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .data-table th {
+      background: #f0f4f8;
+      color: #1a3c5e;
+      font-weight: 700;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      border-bottom: 2px solid #dee2e6;
+    }
+    .data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      color: #444;
+    }
+    .data-table tr:hover td { background: #fafbfc; }
+    .badge-rank {
+      background: #e8f0f8;
+      color: #1a3c5e;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .progress-bar-bg {
+      background: #e9ecef;
+      border-radius: 4px;
+      height: 6px;
+      margin-top: 5px;
+    }
+    .progress-bar-fill {
+      border-radius: 4px;
+      height: 6px;
+      background: #1a3c5e;
+    }
+
+    .section-hidden { display: none; }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #aaa;
+      padding: 30px 0 16px;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar px-4 py-3">
+  <span class="navbar-brand">📊 Sales & Revenue Analysis Dashboard</span>
+  <span class="navbar-text">Data Analytics Project &nbsp;|&nbsp; 2026</span>
+</nav>
+
+<div class="main-container">
+  <div class="page-title">Sales & Revenue Analysis</div>
+  <div class="page-sub">Upload your data below or use the preloaded sample. Use the filters to slice by category, region, or product.</div>
+
+  <!-- Upload -->
+  <div class="upload-area">
+    <label for="fileInput">⬆ Import CSV / Excel</label>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls"/>
+    <div class="upload-hint">
+      Accepted formats: <strong>.csv</strong> or <strong>.xlsx / .xls</strong><br/>
+      Required columns: <code>date, product, category, region, sales, revenue, units</code>
+    </div>
+    <span id="uploadMsg"></span>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-row">
+    <label>Filters:</label>
+    <select id="fCat" onchange="applyFilters()"><option>All Categories</option></select>
+    <select id="fReg" onchange="applyFilters()"><option>All Regions</option></select>
+    <select id="fPrd" onchange="applyFilters()"><option>All Products</option></select>
+    <button class="btn-clear" onclick="clearFilters()">✕ Clear</button>
+    <span id="rowCount" style="font-size:0.8rem;color:#6c757d;margin-left:auto;"></span>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4" id="kpiRow">
+    <div class="col-6 col-md-4 col-lg-2"><div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="kpiRev">—</div><div class="kpi-sub">All transactions</div></div></div>
+    <div class="col-6 col-md-4 col-lg-2"><div class="kpi-card green"><div class="kpi-label">Total Sales</div><div class="kpi-value" id="kpiSal">—</div><div class="kpi-sub">Orders placed</div></div></div>
+    <div class="col-6 col-md-4 col-lg-2"><div class="kpi-card orange"><div class="kpi-label">Units Sold</div><div class="kpi-value" id="kpiUni">—</div><div class="kpi-sub">Total units</div></div></div>
+    <div class="col-6 col-md-4 col-lg-2"><div class="kpi-card purple"><div class="kpi-label">Avg Order Value</div><div class="kpi-value" id="kpiAvg">—</div><div class="kpi-sub">Per transaction</div></div></div>
+    <div class="col-6 col-md-4 col-lg-2"><div class="kpi-card red"><div class="kpi-label">Top Product</div><div class="kpi-value" style="font-size:1rem;padding-top:6px;" id="kpiTop">—</div><div class="kpi-sub" id="kpiTopSub"></div></div></div>
+    <div class="col-6 col-md-4 col-lg-2"><div class="kpi-card" style="border-left-color:#16a085;"><div class="kpi-label">Top Category</div><div class="kpi-value" style="font-size:1rem;padding-top:6px;" id="kpiCat">—</div><div class="kpi-sub" id="kpiCatSub"></div></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('overview',this)">📈 Overview</button>
+    <button class="tab-btn" onclick="showTab('products',this)">📦 Products</button>
+    <button class="tab-btn" onclick="showTab('regional',this)">🗺 Regional</button>
+    <button class="tab-btn" onclick="showTab('rawdata',this)">📋 Raw Data</button>
+  </div>
+
+  <!-- Overview Tab -->
+  <div id="tab-overview">
+    <div class="row g-3">
+      <div class="col-md-8">
+        <div class="chart-card">
+          <div class="chart-title">Monthly Revenue Trend</div>
+          <div class="chart-sub">Total revenue generated per month across all categories</div>
+          <canvas id="revTrendChart" height="80"></canvas>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="chart-card">
+          <div class="chart-title">Revenue by Category</div>
+          <div class="chart-sub">Category-wise revenue share</div>
+          <canvas id="catPieChart" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Monthly Sales Volume</div>
+          <div class="chart-sub">Number of orders placed per month</div>
+          <canvas id="salesBarChart" height="110"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Revenue vs Sales — Monthly</div>
+          <div class="chart-sub">Dual-axis comparison of revenue and order count</div>
+          <canvas id="dualLineChart" height="110"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products Tab -->
+  <div id="tab-products" class="section-hidden">
+    <div class="row g-3">
+      <div class="col-md-7">
+        <div class="chart-card">
+          <div class="chart-title">Top Products by Revenue</div>
+          <div class="chart-sub">Horizontal bar chart — highest revenue products</div>
+          <canvas id="prodBarChart" height="130"></canvas>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="chart-card">
+          <div class="chart-title">Product Sales Count</div>
+          <div class="chart-sub">Number of orders per product</div>
+          <canvas id="prodSalesChart" height="130"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Product Performance Table</div>
+      <div class="chart-sub">Ranked by total revenue generated</div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="prodTable">
+          <thead><tr><th>Rank</th><th>Product</th><th>Category</th><th>Revenue</th><th>Orders</th><th>Units</th><th>Avg / Order</th></tr></thead>
+          <tbody id="prodTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regional Tab -->
+  <div id="tab-regional" class="section-hidden">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Revenue by Region</div>
+          <div class="chart-sub">Total revenue split across regions</div>
+          <canvas id="regRevChart" height="120"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Sales by Region</div>
+          <div class="chart-sub">Order count per region</div>
+          <canvas id="regSalChart" height="120"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Regional Summary Table</div>
+      <div class="chart-sub">Revenue, sales, and share breakdown by region</div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="regTable">
+          <thead><tr><th>Region</th><th>Revenue</th><th>Orders</th><th>Units</th><th>Revenue Share</th></tr></thead>
+          <tbody id="regTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw Data Tab -->
+  <div id="tab-rawdata" class="section-hidden">
+    <div class="chart-card">
+      <div class="chart-title">Raw Transaction Data</div>
+      <div class="chart-sub" id="rawDataSub">Showing all rows</div>
+      <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
+        <table class="data-table" id="rawTable">
+          <thead><tr><th>#</th><th>Date</th><th>Product</th><th>Category</th><th>Region</th><th>Sales</th><th>Revenue</th><th>Units</th></tr></thead>
+          <tbody id="rawTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Sales & Revenue Analysis Dashboard &mdash; Data Analytics Project &mdash; 2026
+</footer>
+
+<script>
+const COLORS = ['#2980b9','#27ae60','#e67e22','#8e44ad','#c0392b','#16a085','#d35400','#2c3e50'];
+const SAMPLE = [
+  {date:"2026-01-05",product:"Laptop Pro",category:"Electronics",region:"North",sales:12,revenue:96000,units:12},
+  {date:"2026-01-12",product:"Wireless Earbuds",category:"Electronics",region:"South",sales:45,revenue:13500,units:45},
+  {date:"2026-01-18",product:"Office Chair",category:"Furniture",region:"East",sales:20,revenue:18000,units:20},
+  {date:"2026-01-25",product:"Standing Desk",category:"Furniture",region:"West",sales:8,revenue:14400,units:8},
+  {date:"2026-02-03",product:"Laptop Pro",category:"Electronics",region:"South",sales:18,revenue:144000,units:18},
+  {date:"2026-02-10",product:"Smart Watch",category:"Electronics",region:"North",sales:60,revenue:18000,units:60},
+  {date:"2026-02-17",product:"Office Chair",category:"Furniture",region:"West",sales:25,revenue:22500,units:25},
+  {date:"2026-02-24",product:"Headphones",category:"Electronics",region:"East",sales:35,revenue:10500,units:35},
+  {date:"2026-03-02",product:"Laptop Pro",category:"Electronics",region:"North",sales:22,revenue:176000,units:22},
+  {date:"2026-03-09",product:"Wireless Earbuds",category:"Electronics",region:"East",sales:80,revenue:24000,units:80},
+  {date:"2026-03-16",product:"Standing Desk",category:"Furniture",region:"South",sales:15,revenue:27000,units:15},
+  {date:"2026-03-23",product:"Smart Watch",category:"Electronics",region:"West",sales:90,revenue:27000,units:90},
+  {date:"2026-04-01",product:"Laptop Pro",category:"Electronics",region:"East",sales:30,revenue:240000,units:30},
+  {date:"2026-04-08",product:"Office Chair",category:"Furniture",region:"North",sales:40,revenue:36000,units:40},
+  {date:"2026-04-15",product:"Headphones",category:"Electronics",region:"South",sales:55,revenue:16500,units:55},
+  {date:"2026-04-22",product:"Wireless Earbuds",category:"Electronics",region:"West",sales:70,revenue:21000,units:70},
+  {date:"2026-04-29",product:"Standing Desk",category:"Furniture",region:"North",sales:12,revenue:21600,units:12},
+  {date:"2026-05-06",product:"Smart Watch",category:"Electronics",region:"East",sales:100,revenue:30000,units:100},
+  {date:"2026-05-10",product:"Laptop Pro",category:"Electronics",region:"West",sales:28,revenue:224000,units:28},
+  {date:"2026-05-13",product:"Office Chair",category:"Furniture",region:"South",sales:33,revenue:29700,units:33},
+];
+
+let allData = SAMPLE;
+let filtered = SAMPLE;
+let charts = {};
+
+function fmt(n) {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(2) + 'M';
+  if (n >= 1000) return '$' + (n/1000).toFixed(1) + 'K';
+  return '$' + Math.round(n).toLocaleString();
+}
+function fmtN(n) {
+  return n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n);
+}
+
+function unique(arr, key) { return [...new Set(arr.map(d => d[key]))].sort(); }
+
+function populateFilters() {
+  const cats = unique(allData, 'category');
+  const regs = unique(allData, 'region');
+  const prds = unique(allData, 'product');
+  const fCat = document.getElementById('fCat');
+  const fReg = document.getElementById('fReg');
+  const fPrd = document.getElementById('fPrd');
+  const save = [fCat.value, fReg.value, fPrd.value];
+  fCat.innerHTML = '<option>All Categories</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+  fReg.innerHTML = '<option>All Regions</option>' + regs.map(r=>`<option>${r}</option>`).join('');
+  fPrd.innerHTML = '<option>All Products</option>' + prds.map(p=>`<option>${p}</option>`).join('');
+  fCat.value = save[0]; fReg.value = save[1]; fPrd.value = save[2];
+}
+
+function applyFilters() {
+  const cat = document.getElementById('fCat').value;
+  const reg = document.getElementById('fReg').value;
+  const prd = document.getElementById('fPrd').value;
+  filtered = allData.filter(d =>
+    (cat === 'All Categories' || d.category === cat) &&
+    (reg === 'All Regions' || d.region === reg) &&
+    (prd === 'All Products' || d.product === prd)
+  );
+  document.getElementById('rowCount').textContent = filtered.length + ' rows shown';
+  renderAll();
+}
+
+function clearFilters() {
+  document.getElementById('fCat').value = 'All Categories';
+  document.getElementById('fReg').value = 'All Regions';
+  document.getElementById('fPrd').value = 'All Products';
+  applyFilters();
+}
+
+function aggregate(data, key) {
+  const map = {};
+  data.forEach(d => {
+    const k = d[key];
+    if (!map[k]) map[k] = { label: k, revenue: 0, sales: 0, units: 0 };
+    map[k].revenue += Number(d.revenue);
+    map[k].sales   += Number(d.sales);
+    map[k].units   += Number(d.units);
+  });
+  return Object.values(map).sort((a,b) => b.revenue - a.revenue);
+}
+
+function makeChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, config);
+}
+
+function renderAll() {
+  updateKPIs();
+  renderOverview();
+  renderProducts();
+  renderRegional();
+  renderRawTable();
+}
+
+function updateKPIs() {
+  const totRev = filtered.reduce((s,d) => s+Number(d.revenue),0);
+  const totSal = filtered.reduce((s,d) => s+Number(d.sales),0);
+  const totUni = filtered.reduce((s,d) => s+Number(d.units),0);
+  const avg = totSal > 0 ? totRev/totSal : 0;
+  const prods = aggregate(filtered,'product');
+  const cats  = aggregate(filtered,'category');
+  document.getElementById('kpiRev').textContent = fmt(totRev);
+  document.getElementById('kpiSal').textContent = fmtN(totSal);
+  document.getElementById('kpiUni').textContent = fmtN(totUni);
+  document.getElementById('kpiAvg').textContent = fmt(Math.round(avg));
+  document.getElementById('kpiTop').textContent = prods[0]?.label || '—';
+  document.getElementById('kpiTopSub').textContent = prods[0] ? fmt(prods[0].revenue)+' revenue' : '';
+  document.getElementById('kpiCat').textContent = cats[0]?.label || '—';
+  document.getElementById('kpiCatSub').textContent = cats[0] ? fmt(cats[0].revenue)+' revenue' : '';
+}
+
+function renderOverview() {
+  // Monthly data
+  const map = {};
+  filtered.forEach(d => {
+    const k = d.date.slice(0,7);
+    if (!map[k]) map[k] = {month:k, revenue:0, sales:0};
+    map[k].revenue += Number(d.revenue);
+    map[k].sales   += Number(d.sales);
+  });
+  const monthly = Object.values(map).sort((a,b) => a.month.localeCompare(b.month));
+  const labels = monthly.map(m => m.month);
+  const revs   = monthly.map(m => m.revenue);
+  const sals   = monthly.map(m => m.sales);
+
+  makeChart('revTrendChart', {
+    type: 'line',
+    data: { labels, datasets: [{
+      label: 'Revenue ($)',
+      data: revs,
+      borderColor: '#2980b9',
+      backgroundColor: 'rgba(41,128,185,0.1)',
+      fill: true,
+      tension: 0.35,
+      pointBackgroundColor: '#2980b9',
+      pointRadius: 5,
+      borderWidth: 2.5
+    }]},
+    options: {
+      responsive:true, plugins:{legend:{display:false}},
+      scales:{
+        y:{ticks:{callback:v=>fmt(v)},grid:{color:'#f0f0f0'}},
+        x:{grid:{display:false}}
+      }
+    }
+  });
+
+  makeChart('salesBarChart', {
+    type: 'bar',
+    data: { labels, datasets: [{
+      label: 'Orders',
+      data: sals,
+      backgroundColor: '#27ae60',
+      borderRadius: 5,
+      borderSkipped: false
+    }]},
+    options:{
+      responsive:true,plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}
+    }
+  });
+
+  makeChart('dualLineChart', {
+    type: 'line',
+    data: { labels, datasets: [
+      {label:'Revenue ($)',data:revs,borderColor:'#2980b9',backgroundColor:'transparent',yAxisID:'y',tension:0.35,pointRadius:4,borderWidth:2},
+      {label:'Sales',data:sals,borderColor:'#e67e22',backgroundColor:'transparent',yAxisID:'y1',tension:0.35,pointRadius:4,borderWidth:2,borderDash:[5,4]}
+    ]},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}},
+      scales:{
+        y:{ticks:{callback:v=>fmt(v)},grid:{color:'#f0f0f0'},position:'left'},
+        y1:{position:'right',grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+
+  const cats = aggregate(filtered,'category');
+  makeChart('catPieChart', {
+    type: 'doughnut',
+    data:{
+      labels: cats.map(c=>c.label),
+      datasets:[{data:cats.map(c=>c.revenue),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}
+    }
+  });
+}
+
+function renderProducts() {
+  const prods = aggregate(filtered,'product');
+  const labels = prods.map(p=>p.label);
+  const revs   = prods.map(p=>p.revenue);
+  const sals   = prods.map(p=>p.sales);
+
+  makeChart('prodBarChart', {
+    type: 'bar',
+    data:{labels, datasets:[{label:'Revenue ($)',data:revs,backgroundColor:COLORS,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y', responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.raw)}`}}},
+      scales:{x:{ticks:{callback:v=>fmt(v)},grid:{color:'#f0f0f0'}},y:{grid:{display:false}}}
+    }
+  });
+
+  makeChart('prodSalesChart', {
+    type: 'bar',
+    data:{labels, datasets:[{label:'Orders',data:sals,backgroundColor:COLORS.map(c=>c+'bb'),borderRadius:4}]},
+    options:{
+      indexAxis:'y', responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'#f0f0f0'}},y:{grid:{display:false}}}
+    }
+  });
+
+  const totRev = filtered.reduce((s,d)=>s+Number(d.revenue),0);
+  const tbody = document.getElementById('prodTableBody');
+  const catMap = {};
+  filtered.forEach(d => { catMap[d.product] = d.category; });
+  tbody.innerHTML = prods.map((p,i)=>`
+    <tr>
+      <td><span class="badge-rank">#${i+1}</span></td>
+      <td><strong>${p.label}</strong></td>
+      <td><span style="background:#f0f4f8;padding:2px 8px;border-radius:12px;font-size:0.78rem;color:#1a3c5e;">${catMap[p.label]||''}</span></td>
+      <td style="color:#27ae60;font-weight:600;">${fmt(p.revenue)}</td>
+      <td>${p.sales.toLocaleString()}</td>
+      <td>${p.units.toLocaleString()}</td>
+      <td style="color:#8e44ad;">${fmt(Math.round(p.revenue/Math.max(p.sales,1)))}</td>
+    </tr>
+  `).join('');
+}
+
+function renderRegional() {
+  const regs = aggregate(filtered,'region');
+  const labels = regs.map(r=>r.label);
+  const revs   = regs.map(r=>r.revenue);
+  const sals   = regs.map(r=>r.sales);
+
+  makeChart('regRevChart', {
+    type:'bar',
+    data:{labels,datasets:[{label:'Revenue ($)',data:revs,backgroundColor:COLORS,borderRadius:5,borderSkipped:false}]},
+    options:{
+      responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.raw)}`}}},
+      scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}
+    }
+  });
+
+  makeChart('regSalChart', {
+    type:'bar',
+    data:{labels,datasets:[{label:'Orders',data:sals,backgroundColor:COLORS.map(c=>c+'bb'),borderRadius:5,borderSkipped:false}]},
+    options:{
+      responsive:true,plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}
+    }
+  });
+
+  const totRev = filtered.reduce((s,d)=>s+Number(d.revenue),0);
+  const tbody = document.getElementById('regTableBody');
+  tbody.innerHTML = regs.map((r,i)=>{
+    const pct = totRev>0 ? ((r.revenue/totRev)*100).toFixed(1) : '0';
+    return `<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLORS[i%COLORS.length]};margin-right:8px;"></span><strong>${r.label}</strong></td>
+      <td style="color:#27ae60;font-weight:600;">${fmt(r.revenue)}</td>
+      <td>${r.sales.toLocaleString()}</td>
+      <td>${r.units.toLocaleString()}</td>
+      <td style="min-width:130px;">${pct}%
+        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;background:${COLORS[i%COLORS.length]};"></div></div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRawTable() {
+  document.getElementById('rawDataSub').textContent = `Showing ${filtered.length} rows`;
+  const tbody = document.getElementById('rawTableBody');
+  tbody.innerHTML = filtered.map((d,i)=>`
+    <tr>
+      <td style="color:#aaa;">${i+1}</td>
+      <td>${d.date}</td>
+      <td>${d.product}</td>
+      <td>${d.category}</td>
+      <td>${d.region}</td>
+      <td>${Number(d.sales).toLocaleString()}</td>
+      <td style="color:#27ae60;font-weight:600;">${fmt(Number(d.revenue))}</td>
+      <td>${Number(d.units).toLocaleString()}</td>
+    </tr>
+  `).join('');
+}
+
+function showTab(name, btn) {
+  ['overview','products','regional','rawdata'].forEach(t => {
+    document.getElementById('tab-'+t).classList.add('section-hidden');
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.remove('section-hidden');
+  btn.classList.add('active');
+}
+
+// File upload
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const msg = document.getElementById('uploadMsg');
+  msg.textContent = 'Reading file...';
+  msg.className = 'upload-msg';
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: r => {
+        allData = r.data;
+        populateFilters();
+        applyFilters();
+        msg.textContent = '✓ Loaded ' + r.data.length + ' rows from ' + file.name;
+        msg.className = 'upload-msg ok';
+      },
+      error: () => { msg.textContent = '✕ Error reading CSV'; msg.className = 'upload-msg err'; }
+    });
+  } else if (['xlsx','xls'].includes(ext)) {
+    const rd = new FileReader();
+    rd.onload = ev => {
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      allData = rows;
+      populateFilters();
+      applyFilters();
+      msg.textContent = '✓ Loaded ' + rows.length + ' rows from ' + file.name;
+      msg.className = 'upload-msg ok';
+    };
+    rd.readAsArrayBuffer(file);
+  } else {
+    msg.textContent = '✕ Please upload a .csv or .xlsx file';
+    msg.className = 'upload-msg err';
+  }
+});
+
+// Init
+populateFilters();
+applyFilters();
+</script>
+</body>
+</html>
